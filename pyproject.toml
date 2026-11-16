@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "verdix-ai"
+version = "1.0.0"
+description = "VERDIX AI Terminal - Creado por NOX"
+authors = [{name = "NOX"}]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "groq",
+    "rich",
+    "requests"
+]
+
+[project.scripts]
+verdixcode = "verdix_ai.main:main"
