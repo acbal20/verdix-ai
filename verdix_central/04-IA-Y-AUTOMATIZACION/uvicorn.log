@@ -1,0 +1,46 @@
+Traceback (most recent call last):
+  File "/home/nox/verdix_central/04-IA-Y-AUTOMATIZACION/nox1-model/venv/bin/uvicorn", line 8, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/nox/verdix_central/04-IA-Y-AUTOMATIZACION/nox1-model/venv/lib/python3.14/site-packages/click/core.py", line 1653, in __call__
+    return self.main(*args, **kwargs)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/nox/verdix_central/04-IA-Y-AUTOMATIZACION/nox1-model/venv/lib/python3.14/site-packages/click/core.py", line 1560, in main
+    rv = self.invoke(ctx)
+  File "/home/nox/verdix_central/04-IA-Y-AUTOMATIZACION/nox1-model/venv/lib/python3.14/site-packages/click/core.py", line 1414, in invoke
+    return ctx.invoke(self.callback, **ctx.params)
+           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nox/verdix_central/04-IA-Y-AUTOMATIZACION/nox1-model/venv/lib/python3.14/site-packages/click/core.py", line 911, in invoke
+    return callback(*args, **kwargs)
+  File "/home/nox/verdix_central/04-IA-Y-AUTOMATIZACION/nox1-model/venv/lib/python3.14/site-packages/uvicorn/main.py", line 448, in main
+    run(
+    ~~~^
+        app,
+        ^^^^
+    ...<49 lines>...
+        reset_contextvars=reset_contextvars,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/nox/verdix_central/04-IA-Y-AUTOMATIZACION/nox1-model/venv/lib/python3.14/site-packages/uvicorn/main.py", line 620, in run
+    config.load_app()
+    ~~~~~~~~~~~~~~~^^
+  File "/home/nox/verdix_central/04-IA-Y-AUTOMATIZACION/nox1-model/venv/lib/python3.14/site-packages/uvicorn/config.py", line 434, in load_app
+    return import_from_string(self.app)
+  File "/home/nox/verdix_central/04-IA-Y-AUTOMATIZACION/nox1-model/venv/lib/python3.14/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+  File "/usr/lib/python3.14/importlib/__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1406, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1371, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1342, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 938, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 755, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 893, in get_code
+  File "<frozen importlib._bootstrap_external>", line 823, in source_to_code
+  File "<frozen importlib._bootstrap>", line 491, in _call_with_frames_removed
+  File "/home/nox/verdix_central/04-IA-Y-AUTOMATIZACION/verdix_ai_package/verdix_central/04-IA-Y-AUTOMATIZACION/app.py", line 143
+    """
+    ^
+SyntaxError: unterminated triple-quoted string literal (detected at line 144)

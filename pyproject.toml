@@ -12,8 +12,12 @@ requires-python = ">=3.8"
 dependencies = [
     "groq",
     "rich",
-    "requests"
+    "requests",
+    "pillow"
 ]
+
+[tool.setuptools]
+packages = ["verdix_ai"]
 
 [project.scripts]
 verdixcode = "verdix_ai.main:main"

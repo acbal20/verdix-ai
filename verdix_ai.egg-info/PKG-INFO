@@ -8,6 +8,7 @@ Description-Content-Type: text/markdown
 Requires-Dist: groq
 Requires-Dist: rich
 Requires-Dist: requests
+Requires-Dist: pillow
 
 # VERDIX AI
 Terminal autónomo creado por NOX para el ecosistema VERDIX.

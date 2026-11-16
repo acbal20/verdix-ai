@@ -1,3 +1,4 @@
 groq
 rich
 requests
+pillow
