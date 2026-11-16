@@ -1,0 +1,10 @@
+README.md
+pyproject.toml
+verdix_ai/__init__.py
+verdix_ai/main.py
+verdix_ai.egg-info/PKG-INFO
+verdix_ai.egg-info/SOURCES.txt
+verdix_ai.egg-info/dependency_links.txt
+verdix_ai.egg-info/entry_points.txt
+verdix_ai.egg-info/requires.txt
+verdix_ai.egg-info/top_level.txt

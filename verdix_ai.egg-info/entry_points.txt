@@ -1,0 +1,2 @@
+[console_scripts]
+verdixcode = verdix_ai.main:main

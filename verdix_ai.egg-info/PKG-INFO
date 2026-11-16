@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: verdix-ai
+Version: 1.0.0
+Summary: VERDIX AI Terminal - Creado por NOX
+Author: NOX
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: groq
+Requires-Dist: rich
+Requires-Dist: requests
+
+# VERDIX AI
+Terminal autónomo creado por NOX para el ecosistema VERDIX.
+Instalación: pip install .
+Ejecución: verdixcode
