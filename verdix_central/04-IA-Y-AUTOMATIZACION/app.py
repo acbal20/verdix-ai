@@ -140,5 +140,3 @@ async def get_history(limit: int = 50):
         for row in rows
     ]
     return JSONResponse(content={"history": history})
-"""
-    
