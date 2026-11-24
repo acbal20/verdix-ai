@@ -1,0 +1,95 @@
+# ==========================================
+# VERDIX AI - .gitignore
+# ==========================================
+
+# Entornos virtuales
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Variables de entorno y secretos
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.secret
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# VERDIX específico
+verdix_memory.db
+verdix_errores.db
+verdix_proyectos.db
+*.bak
+*.sandbox
+main.py.bak
+main.py.sandbox
+
+# Imágenes generadas
+img_*.jpg
+editada_*.jpg
+
+# Logs
+*.log
+logging/
+logs/
+
+# Copias de seguridad
+*.tar.gz
+*_backup_*
+backups/
+
+# Node (si se usa Vercel con frontend)
+node_modules/
+package-lock.json
+npm-debug.log*
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Modelos y binarios grandes (no versionar)
+*.zip
+vosk-model-*/
+*.apk
+*.exe
+*.iso
