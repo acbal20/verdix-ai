@@ -6,6 +6,7 @@ Soporte multi-proveedor de LLM: Groq, OpenAI y Ollama (local).
 
 import os
 import json
+import re
 import requests
 from typing import List, Dict, Optional, Any
 

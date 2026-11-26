@@ -723,20 +723,28 @@ def procesar_respuesta(respuesta_raw: str):
             objetivo = accion_data.get("objetivo", "") or accion_data.get("peticion", "") or accion_data.get("description", "")
             archivo = accion_data.get("archivo", "") or accion_data.get("filename", "") or "mahoraga_output.py"
             max_ciclos = int(accion_data.get("max_ciclos", 5))
-            resultado = flujo_multiagente(objetivo, archivo, max_ciclos)
-            ok_flow = bool(resultado.get("aprobado"))
-            codigo = resultado.get("codigo", "")
-            if codigo and archivo.endswith(".py"):
-                ok_fix, codigo_fix, ev = mahoraga.auto_fix_python(codigo, llm_chat)
-                resultado["codigo"] = codigo_fix
-                resultado["aprobado"] = ok_flow and ok_fix
-                mahoraga.log("mahoraga_auto_fix", ok_fix, objetivo, ev)
-            mahoraga.log("mahoraga_auto", bool(resultado.get("aprobado")), objetivo, resultado.get("mensaje", ""))
-            guardado = guardar_codigo_flujo(resultado.get("archivo") or archivo, resultado.get("codigo", ""))
-            mensaje = f"Objetivo: {objetivo}\nAprobado: {resultado.get('aprobado')}\n{guardado}\n{resultado.get('mensaje','')}"
-            if console:
-                console.print(Panel(mensaje, title="Mahoraga Auto", border_style="magenta"))
-            agregar_registro("mahoraga_auto", objetivo, bool(resultado.get("aprobado")) and "✅" in guardado, mensaje)
+            if llm_provider and llm_provider.nombre_proveedor() == "local":
+                mensaje = ("🌀 Mahoraga Auto requiere un proveedor LLM para generar código autónomamente. "
+                           "Modo local activo: puedes crear el archivo manualmente con 'crea archivo <ruta> con ...' "
+                           "o configurar GROQ_API_KEY/OPENAI_API_KEY/Ollama (opcional).")
+                if console:
+                    console.print(Panel(mensaje, title="Mahoraga Auto", border_style="yellow"))
+                agregar_registro("mahoraga_auto", objetivo, False, mensaje)
+            else:
+                resultado = flujo_multiagente(objetivo, archivo, max_ciclos)
+                ok_flow = bool(resultado.get("aprobado"))
+                codigo = resultado.get("codigo", "")
+                if codigo and archivo.endswith(".py"):
+                    ok_fix, codigo_fix, ev = mahoraga.auto_fix_python(codigo, llm_chat)
+                    resultado["codigo"] = codigo_fix
+                    resultado["aprobado"] = ok_flow and ok_fix
+                    mahoraga.log("mahoraga_auto_fix", ok_fix, objetivo, ev)
+                mahoraga.log("mahoraga_auto", bool(resultado.get("aprobado")), objetivo, resultado.get("mensaje", ""))
+                guardado = guardar_codigo_flujo(resultado.get("archivo") or archivo, resultado.get("codigo", ""))
+                mensaje = f"Objetivo: {objetivo}\nAprobado: {resultado.get('aprobado')}\n{guardado}\n{resultado.get('mensaje','')}"
+                if console:
+                    console.print(Panel(mensaje, title="Mahoraga Auto", border_style="magenta"))
+                agregar_registro("mahoraga_auto", objetivo, bool(resultado.get("aprobado")) and "✅" in guardado, mensaje)
 
         else:
             if accion is None or accion == "chat":
