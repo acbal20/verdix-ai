@@ -13,8 +13,8 @@
 
 bash
 # Clonar el repositorio principal (si aún no lo tienes)
-git clone https://github.com/nox/verdix.git
-cd verdix
+git clone https://github.com/acbal20/verdix-ai.git
+cd verdix-ai
 
 # Crear un entorno virtual (recomendado)
 python3 -m venv venv
