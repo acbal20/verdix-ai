@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from verdix_ai.config import RUTA_HOME, VERSION
+import re
 
 try:
     from rich.console import Console
@@ -68,9 +69,13 @@ class Sandbox:
     def mapear_ruta(self, ruta_real: str) -> str:
         """Mapea una ruta real a su equivalente dentro del sandbox."""
         self._crear()
-        # Tomar solo el nombre del archivo para evitar path traversal
-        nombre = os.path.basename(ruta_real)
-        return os.path.join(self.ruta_sandbox, nombre)
+        ruta_abs = os.path.abspath(os.path.expanduser(ruta_real))
+        home_abs = os.path.abspath(os.path.expanduser("~"))
+        if ruta_abs.startswith(home_abs + os.sep):
+            rel = os.path.relpath(ruta_abs, home_abs)
+        else:
+            rel = os.path.basename(ruta_abs)
+        return os.path.join(self.ruta_sandbox, rel)
 
     def escribir_archivo(self, ruta_real: str, contenido: str) -> str:
         self._crear()
@@ -87,9 +92,20 @@ class Sandbox:
             return f"❌ Error leyendo {ruta_sb}: {e}"
 
     def ejecutar_comando(self, comando: str, password: Optional[str] = None) -> Tuple[int, str]:
-        """Ejecuta un comando dentro del sandbox (sin sudo real, simula permisos)."""
+        """
+        Ejecuta un comando en un directorio temporal de sandbox.
+        NOTA: No es un contenedor aislado; comandos peligrosos se bloquean por patrón.
+        """
+        import re
         self.comandos_ejecutados.append(comando)
-        # En sandbox, sudo se ignora (se asume que ya somos root del sandbox)
+        patrones_bloqueados = [
+            r'\brm\b', r'\bmkfs\b', r'\bdd\b', r'\bshutdown\b', r'\breboot\b',
+            r'\bhalt\b', r'\bpoweroff\b', r'\b:init\b', r'>\s*/dev/', r'\bchmod\b',
+            r'\bchown\b', r'\bkill\b', r'\bpkill\b', r'\bsystemctl\b', r'\bservice\b',
+            r'\bmount\b', r'\bumount\b', r'\bfdisk\b', r'\bparted\b',
+        ]
+        if any(re.search(p, comando, re.IGNORECASE) for p in patrones_bloqueados):
+            return 1, "❌ Comando bloqueado en sandbox por seguridad."
         comando_limpio = comando.replace("sudo ", "").strip()
         try:
             res = subprocess.run(
@@ -97,7 +113,8 @@ class Sandbox:
                 cwd=self.ruta_sandbox,
                 capture_output=True, text=True, timeout=120
             )
-            return res.returncode, (res.stdout or res.stderr or "").strip()
+            salida = (res.stdout or "") + (("\n" + res.stderr) if res.stderr else "")
+            return res.returncode, salida.strip() or "(sin salida)"
         except Exception as e:
             return 1, f"❌ Error ejecutando en sandbox: {e}"
 

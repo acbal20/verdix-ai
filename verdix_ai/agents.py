@@ -28,10 +28,14 @@ except ImportError:
 
 console = Console() if Console else None
 
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
-client = Groq(api_key=GROQ_API_KEY) if (Groq and GROQ_API_KEY) else None
+MODELO = os.environ.get("VERDIX_MODELOS", "openai/gpt-oss-20b").split(",")[0].strip() or "openai/gpt-oss-20b"
 
-MODELO = "openai/gpt-oss-20b"
+
+def _get_groq_client():
+    api_key = os.environ.get("GROQ_API_KEY")
+    if Groq and api_key:
+        return Groq(api_key=api_key)
+    return None
 
 
 class Agent:
@@ -45,10 +49,13 @@ class Agent:
 
     def pensar(self, mensaje, temperatura=0.2, max_tokens=3000, formato_json=True):
         """Envía un mensaje al LLM y devuelve la respuesta cruda."""
+        client = _get_groq_client()
         if not client:
-            return "❌ No hay cliente Groq configurado. Falta GROQ_API_KEY."
+            # Fallback local sin API key
+            if formato_json:
+                return json.dumps({"action": "chat", "message": f"Modo local: {self.nombre} sin proveedor LLM externo. Configura GROQ_API_KEY o usa Ollama para IA completa."})
+            return f"Modo local: {self.nombre} sin proveedor LLM externo."
         self.historial.append({"role": "user", "content": mensaje})
-        # Mantener solo los últimos 6 mensajes + system
         recortado = [self.historial[0]] + self.historial[-6:]
         try:
             kwargs = {
@@ -64,7 +71,7 @@ class Agent:
             self.historial.append({"role": "assistant", "content": respuesta})
             return respuesta
         except Exception as e:
-            return f"❌ Error en {self.nombre}: {e}"
+            return json.dumps({"action": "chat", "message": f"❌ Error en {self.nombre}: {e}"})
 
 
 class ProgramadorAgent(Agent):
@@ -137,6 +144,8 @@ def flujo_multiagente(peticion, archivo_destino=None, max_ciclos=3):
     codigo_actual = ""
     aprobado = False
     mensaje_ultimo = ""
+    errores_previos = ""
+    codigo_final = ""
 
     while ciclo < max_ciclos and not aprobado:
         ciclo += 1
@@ -188,13 +197,17 @@ def flujo_multiagente(peticion, archivo_destino=None, max_ciclos=3):
         )
         try:
             datos_rev = json.loads(resp_rev)
-            aprobado = datos_rev.get("aprobado", False)
-            errores_previos = "; ".join(datos_rev.get("errores", []))
-            mensaje_ultimo = datos_rev.get("message", "")
-            if aprobado:
-                codigo_final = datos_rev.get("correccion", codigo_actual)
+            aprobado = bool(datos_rev.get("aprobado", False))
+            errores = datos_rev.get("errores", [])
+            if isinstance(errores, list):
+                errores_previos = "; ".join(str(e) for e in errores)
             else:
-                codigo_final = codigo_actual
+                errores_previos = str(errores)
+            mensaje_ultimo = datos_rev.get("message", "")
+            correccion = datos_rev.get("correccion", "")
+            codigo_final = correccion if (aprobado and correccion) else codigo_actual
+            if not aprobado and not errores_previos:
+                errores_previos = mensaje_ultimo or "Revisión no aprobada sin detalles."
         except Exception:
             aprobado = False
             errores_previos = "El revisor no devolvió JSON válido."
@@ -214,15 +227,15 @@ def flujo_multiagente(peticion, archivo_destino=None, max_ciclos=3):
 def guardar_codigo_flujo(archivo, codigo):
     """Guarda el código resultante del flujo en un archivo."""
     try:
+        archivo = os.path.expanduser(str(archivo or "programa.py"))
         directorio = os.path.dirname(archivo)
         if directorio:
             os.makedirs(directorio, exist_ok=True)
         with open(archivo, "w", encoding="utf-8") as f:
-            f.write(codigo)
-        # Validar si es Python
+            f.write(codigo or "")
         if archivo.endswith(".py"):
-            ast.parse(codigo)
-        return f"✅ Archivo '{archivo}' guardado ({len(codigo)} bytes)."
+            ast.parse(codigo or "")
+        return f"✅ Archivo '{archivo}' guardado ({len(codigo or '')} bytes)."
     except SyntaxError as e:
         return f"❌ Error de sintaxis al guardar '{archivo}': {e}"
     except Exception as e:

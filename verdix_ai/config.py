@@ -25,14 +25,15 @@ VERSION = "30.0"
 NOMBRE = "VERDIX AI"
 
 # Proveedores de LLM soportados
-PROVEEDORES_DISPONIBLES = ["groq", "openai", "ollama"]
+PROVEEDORES_DISPONIBLES = ["auto", "groq", "openai", "ollama", "local"]
 
 # Configuración por defecto
 CONFIG_DEFAULT = {
-    "proveedor": "groq",
+    "proveedor": "auto",
     "modelo_groq": "openai/gpt-oss-20b",
     "modelo_openai": "gpt-4o-mini",
     "modelo_ollama": "llama3",
+    "modelo_local": "verdix-local",
     "temperatura": 0.2,
     "max_tokens": 4000,
     "max_ciclos_agente": 5,
@@ -61,6 +62,8 @@ def obtener_vercel_team_id():
     return os.environ.get("VERCEL_TEAM_ID")
 
 def es_clave_valida(proveedor="groq"):
+    if proveedor in ("ollama", "local", "auto"):
+        return True
     return bool(obtener_api_key(proveedor))
 
 # Colores de tema VERDIX

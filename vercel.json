@@ -1,20 +1,10 @@
 {
   "version": 2,
   "name": "verdix-ai",
-  "framework": null,
-  "buildCommand": "echo 'VERDIX AI - No build required for Python CLI'",
-  "devCommand": "python -m verdix_ai.main",
-  "installCommand": "pip install -r requirements.txt",
-  "regions": ["iad1"],
-  "env": {
-    "GROQ_API_KEY": "@groq-api-key",
-    "GITHUB_TOKEN": "@github-token",
-    "VERCEL_TOKEN": "@vercel-token"
-  },
+  "builds": [
+    { "src": "api/index.py", "use": "@vercel/python" }
+  ],
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/"
-    }
+    { "src": "/(.*)", "dest": "api/index.py" }
   ]
 }

@@ -6,6 +6,7 @@ Prueba del sistema sandbox y multi-agente de VERDIX (sin API key real).
 import sys
 import os
 import ast
+import shutil
 
 sys.path.insert(0, '/home/nox/verdix-ai')
 os.environ.setdefault('GROQ_API_KEY', 'gsk_TEST')
@@ -62,7 +63,7 @@ print("PRUEBA 4: VerificadorPrevio - crear archivo")
 print("=" * 60)
 verificador = VerificadorPrevio(max_intentos=3)
 resultado = verificador.verificar_crear_archivo(
-    "/tmp/verdix_test_prueba.py",
+    os.path.expanduser("~/verdix_test_prueba.py"),
     "print('Funciona')\n",
     llm_mock
 )
@@ -75,7 +76,7 @@ print("\n" + "=" * 60)
 print("PRUEBA 5: VerificadorPrevio - código roto con auto-arreglo")
 print("=" * 60)
 resultado2 = verificador.verificar_crear_archivo(
-    "/tmp/verdix_test_roto.py",
+    os.path.expanduser("~/verdix_test_roto.py"),
     "print('Hola'\n",  # SyntaxError
     llm_mock
 )
@@ -88,7 +89,7 @@ print("\n" + "=" * 60)
 print("PRUEBA 6: ToolExecutor con sandbox")
 print("=" * 60)
 executor = ToolExecutor(llm_chat=llm_mock, max_intentos=3)
-resultado_exec = executor.ejecutar("create_file", filename="/tmp/verdix_exec_test.py", content="print('Ejecutor OK')\n")
+resultado_exec = executor.ejecutar("create_file", filename=os.path.expanduser("~/verdix_exec_test.py"), content="print('Ejecutor OK')\n")
 print(f"  Resultado: {resultado_exec}")
 
 # --- Prueba 7: Contexto de proyecto ---
@@ -96,7 +97,7 @@ print("\n" + "=" * 60)
 print("PRUEBA 7: Contexto de proyecto")
 print("=" * 60)
 from verdix_ai.core.project_context import contexto
-mensaje = contexto.crear_proyecto("test-proyecto", "/tmp/verdix_test_proyecto", "Proyecto de prueba")
+mensaje = contexto.crear_proyecto("test-proyecto", os.path.expanduser("~/verdix_test_proyecto"), "Proyecto de prueba")
 print(f"  {mensaje}")
 mensaje2 = contexto.activar_proyecto("test-proyecto")
 print(f"  {mensaje2}")

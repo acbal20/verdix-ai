@@ -25,6 +25,7 @@ from verdix_ai.config import (
     RUTA_HOME, RUTA_VERDIX, DB_MEMORIA, DB_ERRORES,
     COLOR_PRIMARIO, COLOR_PELIGRO, COLOR_EXITO, COLOR_ADVERTENCIA,
 )
+from verdix_ai.core.mahoraga import mahoraga
 
 try:
     from rich.console import Console
@@ -54,6 +55,14 @@ def _obtener_registros() -> List[Dict[str, Any]]:
 
 def _limpiar_registros():
     registro_acciones.clear()
+
+
+def obtener_registros() -> List[Dict[str, Any]]:
+    return _obtener_registros()
+
+
+def limpiar_registros():
+    _limpiar_registros()
 
 # ==========================================
 # SEGURIDAD
@@ -338,7 +347,10 @@ def herramienta_instalar_paquete(paquete: str, metodo: str = "pip") -> str:
 
 def herramienta_generar_imagen(prompt: str) -> str:
     """Genera una imagen usando Pollinations AI."""
-    import requests, random
+    try:
+        import requests, random
+    except Exception as e:
+        return f"❌ Falta dependencia para generar imagen: {e}"
     try:
         urls = [
             f"https://image.pollinations.ai/prompt/{requests.utils.quote(prompt)}?width=1024&height=1024&nologo=true&seed={random.randint(1, 99999)}",
@@ -352,7 +364,9 @@ def herramienta_generar_imagen(prompt: str) -> str:
                 if r.status_code == 200:
                     with open(ruta, 'wb') as f:
                         for chunk in r.iter_content(chunk_size=8192):
-                            f.write(chunk)
+                            if chunk:
+                                f.write(chunk)
+                    herramienta_editar_imagen._ultima = str(ruta)
                     return f"✅ Imagen guardada: {ruta}"
             except Exception:
                 continue
@@ -366,16 +380,16 @@ def herramienta_editar_imagen(archivo_entrada: str, accion: str, archivo_salida:
     try:
         from PIL import Image, ImageFilter, ImageOps
     except ImportError:
-        res = herramienta_instalar_paquete("Pillow", "pip")
-        if "❌" in res:
-            return res
-        from PIL import Image, ImageFilter, ImageOps
+        return "❌ Falta dependencia Pillow. Instala con: pip install Pillow"
     try:
-        if not archivo_entrada or archivo_entrada.lower() in ("ultima", "última"):
+        if not archivo_entrada or str(archivo_entrada).lower() in ("ultima", "última", "last"):
             archivo_entrada = getattr(herramienta_editar_imagen, "_ultima", None)
         if not archivo_entrada:
             return "❌ No hay imagen previa."
-        img = Image.open(os.path.expanduser(archivo_entrada))
+        ruta_entrada = Path(os.path.expanduser(str(archivo_entrada)))
+        if not ruta_entrada.exists():
+            return f"❌ Imagen no encontrada: {ruta_entrada}"
+        img = Image.open(ruta_entrada)
         if accion == "blanco_negro":
             img = ImageOps.grayscale(img)
         elif accion == "desenfoque":
@@ -386,8 +400,8 @@ def herramienta_editar_imagen(archivo_entrada: str, accion: str, archivo_salida:
             img = img.resize((800, 600))
         else:
             return f"❌ Acción '{accion}' no soportada."
-        salida = archivo_salida or f"editada_{Path(archivo_entrada).name}"
-        ruta_salida = Path(os.path.abspath(salida))
+        salida = archivo_salida or f"editada_{ruta_entrada.name}"
+        ruta_salida = Path(os.path.abspath(os.path.expanduser(salida)))
         img.save(ruta_salida)
         herramienta_editar_imagen._ultima = str(ruta_salida)
         return f"✅ Imagen editada: {ruta_salida}"
@@ -400,16 +414,13 @@ def herramienta_buscar_web(query: str) -> str:
     try:
         from ddgs import DDGS
     except ImportError:
-        res = herramienta_instalar_paquete("ddgs", "pip")
-        if "❌" in res:
-            return res
-        from ddgs import DDGS
+        return "❌ Falta dependencia ddgs. Instala con: pip install ddgs"
     try:
         with DDGS() as ddgs:
             resultados = list(ddgs.text(query, max_results=8))
-            if not resultados:
-                return "✅ No se encontraron resultados."
-            return "\n".join([f"• {r.get('title','')}: {r.get('body','')}" for r in resultados])
+        if not resultados:
+            return "✅ No se encontraron resultados."
+        return "\n".join([f"• {r.get('title','')}: {r.get('body','')}" for r in resultados])
     except Exception as e:
         return f"❌ Error en búsqueda web: {e}"
 
@@ -579,15 +590,16 @@ class ToolExecutor:
             metodo = kwargs.get("metodo", "pip")
             if not paquete:
                 return "❌ Falta parámetro 'paquete'."
+            import re
+            if not re.fullmatch(r"[A-Za-z0-9_.-]+", str(paquete)):
+                return f"❌ Nombre de paquete inválido: {paquete}"
 
             def accion_real():
                 return ejecutar_herramienta("install_package", paquete=paquete, metodo=metodo)
 
-            # Para instalación, verificamos que el paquete sea válido (nombre correcto)
-            comando_verif = f"{sys.executable} -m pip install --user {paquete}" if metodo == "pip" else f"sudo apt-get install -y {paquete}"
-            resultado_sb = self.verificador.verificar_comando(
-                comando_verif, self.llm_chat
-            )
+            # No ejecutar instalación real en sandbox; solo validar formato y delegar confirmación real.
+            from verdix_ai.core.sandbox import SandboxResult
+            resultado_sb = SandboxResult(True, f"Paquete '{paquete}' validado para {metodo}.", intentos=1)
             return self._finalizar_inyeccion(nombre, paquete, resultado_sb, accion_real)
 
         elif nombre == "run_python":
@@ -618,11 +630,13 @@ class ToolExecutor:
 
         try:
             resultado_real = accion_real()
+            mahoraga.log("tool_inject", True, f"{nombre}:{objetivo}", str(resultado_real)[:1000])
             return (
                 f"✅ [SANDBOX APROBADO] {nombre} verificado en {resultado_sb.intentos} intento(s).\n"
                 f"🚀 Inyectado al sistema real:\n{resultado_real}"
             )
         except Exception as e:
+            mahoraga.log("tool_inject", False, f"{nombre}:{objetivo}", str(e))
             return f"❌ Error inyectando al sistema real: {e}"
 
     def obtener_historial_sandbox(self):

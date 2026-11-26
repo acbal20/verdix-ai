@@ -20,7 +20,7 @@ import re
 import argparse
 import signal
 import getpass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Callable, Optional, Dict, Any, List
 
 try:
@@ -41,11 +41,13 @@ from verdix_ai.config import (
 )
 
 # --- Núcleo de herramientas y sandbox ---
+import verdix_ai.core.tool_registry as tool_registry
 from verdix_ai.core.tool_registry import (
     ejecutar_herramienta, listar_herramientas,
-    inicializar_executor, tool_executor,
+    inicializar_executor,
 )
 from verdix_ai.core.sandbox import verificador, SandboxResult
+from verdix_ai.core.mahoraga import mahoraga
 
 # --- Multi-agente ---
 from verdix_ai.agents import (
@@ -331,17 +333,14 @@ def procesar_respuesta(respuesta_raw: str):
             if console:
                 console.print(Panel(mensaje, title="[bold green]Resultado Multi-Agente[/]",
                                     border_style="green" if exito else "red"))
-            if exito and resultado.get("codigo"):
-                guardado = guardar_codigo_flujo(resultado["archivo"], resultado["codigo"])
-                if console:
-                    console.print(f"[bold]{guardado}[/]")
-                agregar_registro("multi_agent_flow", resultado["archivo"], exito, guardado)
-            else:
-                agregar_registro("multi_agent_flow", archivo or "(sin archivo)", exito, "Flujo no aprobado.")
+            guardado = guardar_codigo_flujo(resultado.get("archivo") or archivo or "programa.py", resultado.get("codigo", ""))
+            if console:
+                console.print(f"[bold]{guardado}[/]")
+            agregar_registro("multi_agent_flow", resultado.get("archivo") or archivo or "(sin archivo)", exito and "✅" in guardado, guardado)
 
         # --- TERMINAL (con sandbox) ---
         elif accion == "terminal":
-            cmd = accion_data.get("command", "")
+            cmd = accion_data.get("command", "") or accion_data.get("comando", "")
             password = accion_data.get("password", None)
             if not cmd:
                 continue
@@ -354,8 +353,8 @@ def procesar_respuesta(respuesta_raw: str):
                     password = password or getpass.getpass("Contraseña de sudo: ")
             if console:
                 console.print(f"[dim]⚡ Ejecutando en sandbox: {cmd}[/]")
-            if tool_executor:
-                resultado = tool_executor.ejecutar("terminal", comando=cmd, password=password)
+            if tool_registry.tool_executor:
+                resultado = tool_registry.tool_executor.ejecutar("terminal", comando=cmd, password=password)
             else:
                 resultado = ejecutar_herramienta("terminal", comando=cmd, password=password)
             if console:
@@ -370,8 +369,8 @@ def procesar_respuesta(respuesta_raw: str):
             content = accion_data.get("content", "")
             if not filename:
                 continue
-            if tool_executor:
-                resultado = tool_executor.ejecutar(accion, filename=filename, content=content)
+            if tool_registry.tool_executor:
+                resultado = tool_registry.tool_executor.ejecutar(accion, filename=filename, content=content)
             else:
                 resultado = ejecutar_herramienta(accion, filename=filename, content=content)
             if console:
@@ -418,10 +417,10 @@ def procesar_respuesta(respuesta_raw: str):
 
         # --- PAQUETES (con sandbox) ---
         elif accion == "install_system_package":
-            paquete = accion_data.get("package", "")
-            metodo = accion_data.get("method", "pip")
-            if tool_executor:
-                resultado = tool_executor.ejecutar("install_package", paquete=paquete, metodo=metodo)
+            paquete = accion_data.get("package", "") or accion_data.get("paquete", "")
+            metodo = accion_data.get("method", "pip") or accion_data.get("metodo", "pip")
+            if tool_registry.tool_executor:
+                resultado = tool_registry.tool_executor.ejecutar("install_package", paquete=paquete, metodo=metodo)
             else:
                 resultado = ejecutar_herramienta("install_package", paquete=paquete, metodo=metodo)
             if console:
@@ -443,8 +442,8 @@ def procesar_respuesta(respuesta_raw: str):
             agregar_registro("generate_image", prompt, exito, resultado)
 
         elif accion == "edit_image":
-            archivo = accion_data.get("filename", "")
-            accion_img = accion_data.get("edit_type", "")
+            archivo = accion_data.get("filename", "") or accion_data.get("archivo_entrada", "")
+            accion_img = accion_data.get("edit_type", "") or accion_data.get("accion", "")
             salida = accion_data.get("archivo_salida", None)
             resultado = ejecutar_herramienta("edit_image", archivo_entrada=archivo,
                                              accion=accion_img, archivo_salida=salida)
@@ -467,8 +466,10 @@ def procesar_respuesta(respuesta_raw: str):
         # --- PYTHON (con sandbox) ---
         elif accion == "run_python":
             filename = accion_data.get("filename", "")
-            if tool_executor:
-                resultado = tool_executor.ejecutar("run_python", filename=filename)
+            if not filename:
+                continue
+            if tool_registry.tool_executor:
+                resultado = tool_registry.tool_executor.ejecutar("run_python", filename=filename)
             else:
                 resultado = ejecutar_herramienta("run_python", filename=filename)
             if console:
@@ -523,9 +524,11 @@ def procesar_respuesta(respuesta_raw: str):
             repo = accion_data.get("repo", "")
             ruta = accion_data.get("ruta", "")
             contenido = accion_data.get("contenido", "")
+            if contenido is None:
+                contenido = ""
             mensaje_commit = accion_data.get("mensaje_commit", None)
-            rama = accion_data.get("rama", "main")
-            res = github_upload_file(usuario, repo, ruta, contenido, mensaje_commit, rama)
+            rama = accion_data.get("rama", "main") or "main"
+            res = github_upload_file(usuario, repo, ruta, str(contenido), mensaje_commit, rama)
             if isinstance(res, dict) and res.get("status") in (200, 201):
                 mensaje = f"✅ Archivo '{ruta}' subido a {usuario}/{repo}."
                 exito = True
@@ -689,7 +692,7 @@ def procesar_respuesta(respuesta_raw: str):
             agregar_registro("herramientas", "listar", True, mensaje)
 
         elif accion == "historial_sandbox":
-            hist = tool_executor.obtener_historial_sandbox() if tool_executor else []
+            hist = tool_registry.tool_executor.obtener_historial_sandbox() if tool_registry.tool_executor else []
             if hist:
                 lineas = [f"🛡️ Historial Sandbox ({len(hist)}):"]
                 for h in hist[-10:]:
@@ -701,6 +704,39 @@ def procesar_respuesta(respuesta_raw: str):
             if console:
                 console.print(Panel(mensaje, title="Sandbox", border_style="blue"))
             agregar_registro("historial_sandbox", "ver", True, mensaje)
+
+        elif accion == "mahoraga_status":
+            eventos = mahoraga.recent(20)
+            if eventos:
+                lineas = [f"🌀 Mahoraga eventos ({len(eventos)}):"]
+                for e in eventos[-20:]:
+                    estado = "✅" if e["ok"] else "❌"
+                    lineas.append(f"  {estado} [{e['kind']}] {e['detail']}")
+                mensaje = "\n".join(lineas)
+            else:
+                mensaje = "🌀 Mahoraga activo, sin eventos aún."
+            if console:
+                console.print(Panel(mensaje, title="Mahoraga", border_style="magenta"))
+            agregar_registro("mahoraga_status", "ver", True, mensaje)
+
+        elif accion == "mahoraga_auto":
+            objetivo = accion_data.get("objetivo", "") or accion_data.get("peticion", "") or accion_data.get("description", "")
+            archivo = accion_data.get("archivo", "") or accion_data.get("filename", "") or "mahoraga_output.py"
+            max_ciclos = int(accion_data.get("max_ciclos", 5))
+            resultado = flujo_multiagente(objetivo, archivo, max_ciclos)
+            ok_flow = bool(resultado.get("aprobado"))
+            codigo = resultado.get("codigo", "")
+            if codigo and archivo.endswith(".py"):
+                ok_fix, codigo_fix, ev = mahoraga.auto_fix_python(codigo, llm_chat)
+                resultado["codigo"] = codigo_fix
+                resultado["aprobado"] = ok_flow and ok_fix
+                mahoraga.log("mahoraga_auto_fix", ok_fix, objetivo, ev)
+            mahoraga.log("mahoraga_auto", bool(resultado.get("aprobado")), objetivo, resultado.get("mensaje", ""))
+            guardado = guardar_codigo_flujo(resultado.get("archivo") or archivo, resultado.get("codigo", ""))
+            mensaje = f"Objetivo: {objetivo}\nAprobado: {resultado.get('aprobado')}\n{guardado}\n{resultado.get('mensaje','')}"
+            if console:
+                console.print(Panel(mensaje, title="Mahoraga Auto", border_style="magenta"))
+            agregar_registro("mahoraga_auto", objetivo, bool(resultado.get("aprobado")) and "✅" in guardado, mensaje)
 
         else:
             if accion is None or accion == "chat":
@@ -821,6 +857,13 @@ Puedes usar Groq, OpenAI o Ollama según la configuración del usuario.
 - {{"action": "proyecto_contexto", "clave": "key", "valor": "valor"}}
 - {{"action": "herramientas"}}
 - {{"action": "historial_sandbox"}}
+- {{"action": "mahoraga_status"}}
+- {{"action": "mahoraga_auto", "objetivo": "qué construir/arreglar", "archivo": "salida.py", "max_ciclos": 5}}
+
+=== MAHORAGA / ADAPTATIVO ===
+- Si una acción falla, adapta el enfoque: simplifica, cambia herramienta, divide en pasos, reintenta con evidencia.
+- Usa mahoraga_auto para tareas de construcción/arreglo autónomo con verificación.
+- Nunca afirmes éxito sin evidencia (salida, archivo verificado, test/sintaxis).
 
 === MULTI-AGENTE ===
 Puedes usar multi_agent_flow para construir código con verificación automática:
@@ -837,13 +880,13 @@ Puedes usar multi_agent_flow para construir código con verificación automátic
 # MAIN
 # ==========================================
 def main():
-    global llm_provider, historial, tool_executor
+    global llm_provider, historial
 
     parser = argparse.ArgumentParser(description="VERDIX AI Terminal - Sistema Multi-Agente")
     parser.add_argument("--version", action="store_true", help="Mostrar versión y salir")
     parser.add_argument("--no-splash", action="store_true", help="Omitir pantalla de bienvenida")
     parser.add_argument("--clear-cache", action="store_true", help="Limpiar historial y caché")
-    parser.add_argument("--proveedor", choices=["groq", "openai", "ollama"], default="groq",
+    parser.add_argument("--proveedor", choices=["auto", "groq", "openai", "ollama", "local"], default=os.environ.get("VERDIX_PROVEEDOR","auto"),
                         help="Proveedor de LLM (default: groq)")
     parser.add_argument("--modelo", default=None, help="Modelo específico del proveedor")
     args = parser.parse_args()
@@ -858,14 +901,17 @@ def main():
         if console:
             console.print("[bold yellow]🧹 Memoria y caché borrados.[/]")
 
+    if not args.modelo:
+        env_modelos = os.environ.get("VERDIX_MODELOS", "")
+        if env_modelos:
+            args.modelo = env_modelos.split(",")[0].strip()
+
     # Inicializar proveedor LLM
     modelo = args.modelo
     try:
         llm_provider = LLMProvider(proveedor=args.proveedor, modelo=modelo)
-        if not llm_provider.disponible():
-            if console:
-                console.print(f"[bold red]⚠️ Proveedor {args.proveedor} no disponible. Falta API key o servicio.[/]")
-                console.print(f"[dim]Configura la variable de entorno correspondiente (GROQ_API_KEY, OPENAI_API_KEY, etc.)[/]")
+        if console and llm_provider and llm_provider.nombre_proveedor() == "local":
+            console.print("[bold yellow]ℹ️ Modo local activo: no se requiere API key. Para IA completa, configura GROQ_API_KEY/OPENAI_API_KEY o usa Ollama.[/]")
     except Exception as e:
         if console:
             console.print(f"[bold red]Error inicializando LLM:[/] {e}")
@@ -876,11 +922,10 @@ def main():
 
     signal.signal(signal.SIGINT, manejar_senal)
 
-    if not es_clave_valida(args.proveedor):
-        if console:
-            console.print(f"[bold red]ERROR:[/] No se encontró API key para {args.proveedor}.")
-            console.print(f"[dim]Exporta la variable: export {args.proveedor.upper()}_API_KEY='tu_clave'[/]")
-        return 1
+    # No bloquear: modo auto/local funciona sin API key.
+    if not es_clave_valida(args.proveedor) and console:
+        console.print(f"[bold yellow]⚠️ Proveedor {args.proveedor} sin credenciales; usando modo local.[/]")
+        args.proveedor = "local"
 
     limpiar_cache_expirado()
     historial = [{"role": "system", "content": construir_system_prompt()}] + cargar_historial()
@@ -891,7 +936,7 @@ def main():
             f"[bold bright_green]{NOMBRE} Code v{VERSION}[/]\n"
             f"[dim]Creado por NOX | Multi-Agente + Sandbox + GitHub + Vercel[/]\n"
             f"Escribe 'salir' para terminar.\n"
-            f"Proveedor: {args.proveedor} | Modelo: {llm_provider.modelo if llm_provider else 'N/A'}",
+            f"Proveedor: {llm_provider.nombre_proveedor() if llm_provider else args.proveedor} | Modelo: {llm_provider.modelo if llm_provider else "N/A"}",
             border_style="bright_green"))
     else:
         print(f"{NOMBRE} Code v{VERSION} - Creado por NOX")
@@ -937,8 +982,8 @@ def main():
             historial.append({"role": "user", "content": prompt})
             historial_reducido = [historial[0]] + historial[-6:] if len(historial) > 6 else historial
 
-            if console:
-                status = console.status("[bold yellow]Pensando...")
+            status = console.status("[bold yellow]Pensando...") if console else None
+            if status:
                 status.start()
             try:
                 respuesta_raw = llm_chat_con_historial(
@@ -946,10 +991,9 @@ def main():
                     temperatura=0.2,
                     formato_json=True,
                 )
-            except Exception as e:
+            except Exception:
                 if console:
-                    console.print(f"[dim yellow]⚠️ Reintentando sin JSON estricto...[/]")
-                    status.stop()
+                    console.print("[dim yellow]⚠️ Reintentando sin JSON estricto...[/]")
                 respuesta_raw = llm_chat_con_historial(
                     historial_reducido,
                     temperatura=0.2,
@@ -958,8 +1002,9 @@ def main():
                 match = re.search(r'(\{.*\})', respuesta_raw, re.DOTALL)
                 if match:
                     respuesta_raw = match.group(1)
-            if console:
-                status.stop()
+            finally:
+                if status:
+                    status.stop()
 
             guardar_mensaje("assistant", respuesta_raw)
             historial.append({"role": "assistant", "content": respuesta_raw})

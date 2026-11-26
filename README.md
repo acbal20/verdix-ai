@@ -4,6 +4,8 @@ Creado por NOX | Powered by Groq / OpenAI / Ollama
 
 ## 🚀 Características
 
+> **Nota:** VERDIX AI es principalmente un **CLI Python**. Para Vercel se incluye una API web mínima (`/api/health`, `/api/info`) en `api/index.py` para despliegue y estado.
+
 | Característica | Descripción |
 |---------------|-------------|
 | **Multi-Agente** | VERDIX-Programador, VERDIX-Revisor, VERDIX-Orquestador trabajan juntos para escribir y validar código |
@@ -102,13 +104,30 @@ verdix-ai/
 └── README.md
 ```
 
+## ☁️ Despliegue Vercel
+
+El repo incluye `api/index.py` y `vercel.json` para desplegar una API mínima de estado:
+
+- `GET /` - página de estado
+- `GET /api/health` - healthcheck
+- `GET /api/info` - metadata del servicio
+
+Despliegue manual:
+
+```bash
+npm i -g vercel
+vercel --token "$VERCEL_TOKEN"
+vercel --prod --token "$VERCEL_TOKEN"
+```
+
 ## ⚠️ Seguridad
 
 - Las claves API se leen de variables de entorno, nunca hardcodeadas
+- **No subas `.env` a GitHub**. El repo ya lo ignora, pero rota cualquier clave expuesta.
 - El historial de chat se guarda en SQLite (texto plano) - no almacenes secretos ahí
 - Las rutas fuera de `/home/usuario` están bloqueadas (protección contra path traversal)
-- Comandos peligrosos (`sudo`, `rm`, `apt`, `curl`, etc.) requieren confirmación explícita
-- El sandbox evita que código defectuoso dañe tu sistema real
+- Comandos peligrosos requieren confirmación explícita
+- El sandbox es verificación previa en directorio temporal; **no es un contenedor aislado**
 
 ## 🧪 Ejecutar Pruebas
 

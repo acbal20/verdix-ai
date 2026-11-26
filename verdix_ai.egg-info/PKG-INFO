@@ -10,7 +10,125 @@ Requires-Dist: rich
 Requires-Dist: requests
 Requires-Dist: pillow
 
-# VERDIX AI
-Terminal autónomo creado por NOX para el ecosistema VERDIX.
-Instalación: pip install .
-Ejecución: verdixcode
+# VERDIX AI - Sistema Multi-Agente Autónomo v30.0
+
+Creado por NOX | Powered by Groq / OpenAI / Ollama
+
+## 🚀 Características
+
+| Característica | Descripción |
+|---------------|-------------|
+| **Multi-Agente** | VERDIX-Programador, VERDIX-Revisor, VERDIX-Orquestador trabajan juntos para escribir y validar código |
+| **Sandbox de Verificación** | Ningún cambio se inyecta al sistema real sin pasar primero por pruebas aisladas. Si falla, se auto-arregla hasta 5 veces |
+| **GitHub Integration** | Crear repos, subir archivos, crear issues, listar repos |
+| **Vercel Integration** | Desplegar directorios, listar despliegues, resumen de cuenta |
+| **Contexto de Proyecto** | Proyectos persistentes con contexto clave-valor |
+| **Memoria** | Historial de conversación y caché en SQLite |
+| **Multi-LLM** | Groq, OpenAI y Ollama |
+| **Herramientas** | Terminal, archivos, imágenes, búsqueda web, Python, paquetes |
+
+## 📦 Instalación
+
+```bash
+# 1. Copia el archivo de entorno
+cp ~/verdix-ai/.env.example ~/verdix-ai/.env
+
+# 2. Edita .env y agrega tus claves API
+nano ~/verdix-ai/.env
+
+# 3. Ejecuta VERDIX
+chmod +x ~/verdix-ai/iniciar_verdix.sh
+~/verdix-ai/iniciar_verdix.sh
+```
+
+## 🔑 Variables de Entorno Obligatorias
+
+| Variable | Descripción |
+|----------|-------------|
+| `GROQ_API_KEY` | Clave de Groq (obligatoria si usas proveedor groq) |
+| `OPENAI_API_KEY` | Clave de OpenAI (si usas proveedor openai) |
+| `GITHUB_TOKEN` | Token de GitHub con scopes `repo` y `user` |
+| `VERCEL_TOKEN` | Token de API de Vercel |
+| `VERCEL_TEAM_ID` | ID de equipo de Vercel (opcional) |
+
+> ⚠️ **NUNCA compartas tus claves de API.** Revoca cualquier clave que hayas expuesto en chats públicos.
+
+## 🎯 Uso Dentro de VERDIX
+
+Una vez iniciado, escribe peticiones en lenguaje natural. VERDIX las interpretará y ejecutará acciones automáticamente.
+
+### Ejemplos de peticiones
+
+```
+> hazme un script de Python que haga backup de una carpeta y guárdalo en backup.py
+> revisa el código de main.py y dime si tiene errores
+> crea un repositorio en GitHub llamado mi-proyecto y súbelo
+> despliega mi proyecto en Vercel
+> busca en web información sobre React 19
+> crea un proyecto llamado "web-app" en ~/proyectos/web-app
+> genera una imagen del logo de VERDIX con el símbolo infinito
+```
+
+### Ejemplo de flujo multi-agente
+
+Si le pides: `crea un analizador de logs en Python y verifícalo`
+
+VERDIX hará:
+1. **Programador** escribe el código
+2. **Revisor** lo revisa (sintaxis, seguridad, buenas prácticas)
+3. Si hay errores, vuelve al Programador (máx. 5 ciclos)
+4. Si aprueba, se guarda en el archivo especificado
+5. Se muestra un resumen de la sesión al salir
+
+## 🛡️ Sandbox y Auto-Arreglo
+
+TODA acción que modifique el sistema (`create_file`, `edit_file`, `terminal`, `install_package`, `run_python`) pasa por este flujo:
+
+1. **Sandbox**: Se prueba en un directorio temporal aislado
+2. **Validación**: Si es Python, se verifica sintaxis con `ast.parse`
+3. **Auto-arreglo**: Si falla, el LLM intenta corregir el código (hasta 5 veces)
+4. **Inyección**: Solo si pasa las pruebas, se aplica al sistema real
+
+Si el sandbox rechaza una acción, el sistema real **no se modifica**.
+
+## 📁 Estructura del Proyecto
+
+```
+verdix-ai/
+├── verdix_ai/
+│   ├── __init__.py
+│   ├── main.py              # Punto de entrada y bucle principal
+│   ├── config.py            # Configuración central
+│   ├── agents.py            # Agentes multi-agente
+│   ├── core/
+│   │   ├── llm_provider.py  # Soporte Groq, OpenAI, Ollama
+│   │   ├── tool_registry.py # Registro y ejecución de herramientas
+│   │   ├── sandbox.py       # Sandbox + auto-arreglador
+│   │   └── project_context.py # Contexto de proyecto persistente
+│   ├── github_integration.py
+│   └── vercel_integration.py
+├── test_sandbox.py          # Pruebas del sistema
+├── .env.example             # Plantilla de variables de entorno
+├── iniciar_verdix.sh        # Script de inicio rápido
+├── pyproject.toml
+└── README.md
+```
+
+## ⚠️ Seguridad
+
+- Las claves API se leen de variables de entorno, nunca hardcodeadas
+- El historial de chat se guarda en SQLite (texto plano) - no almacenes secretos ahí
+- Las rutas fuera de `/home/usuario` están bloqueadas (protección contra path traversal)
+- Comandos peligrosos (`sudo`, `rm`, `apt`, `curl`, etc.) requieren confirmación explícita
+- El sandbox evita que código defectuoso dañe tu sistema real
+
+## 🧪 Ejecutar Pruebas
+
+```bash
+cd ~/verdix-ai
+python test_sandbox.py
+```
+
+## 📞 Soporte
+
+VERDIX AI creado por NOX. Sistema diseñado para ser igual o mejor que herramientas como OpenCode, con enfoque en seguridad, verificación automática y multi-agente.

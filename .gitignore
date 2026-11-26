@@ -93,3 +93,4 @@ vosk-model-*/
 *.apk
 *.exe
 *.iso
+.vercel
