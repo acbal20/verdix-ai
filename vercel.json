@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "name": "verdix-ai",
   "builds": [
     { "src": "api/index.py", "use": "@vercel/python" }
   ],
